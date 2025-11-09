@@ -182,13 +182,10 @@
     
     const quant = currentData.reduce((total, item) => {
       return total + (item.events && (item.intensity > 91) ? 1 : 0);
-    }, 0)/6;
-    const cadence = quant/ 60*(totalDuration > 0 ? totalDuration : 1);
+    }, 0);
+    const cadence = totalEvents/ totalDuration;
 
-    console.log("duração: "+totalDuration);
-    console.log("quantidade de tiros: " + quant)
-
-    const avgPerMinute = totalDuration>0 ? (totalEvents/totalDuration).toFixed(1) : '0.0';
+    const avgPerMinute = totalDuration>0 ? (totalEvents/totalDuration).toFixed(2) : '0.00';
     document.getElementById('totalEvents').textContent = totalEvents;
     document.getElementById('avgPerMinute').textContent = avgPerMinute;
     document.getElementById('peakEvents').textContent = peakEvents;

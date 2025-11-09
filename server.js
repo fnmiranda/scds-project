@@ -8,7 +8,7 @@ const path = require('path');
 
 const PORT = process.env.PORT || 3000;
 const SERIAL_PATH = process.env.SERIAL_PATH || 'COM3'; // ajuste por ENV
-const SERIAL_BAUD = Number(process.env.SERIAL_BAUD || 9600  );
+const SERIAL_BAUD = Number(process.env.SERIAL_BAUD || 115200  );
 
 const app = express();
 const server = http.createServer(app);
