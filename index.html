@@ -88,16 +88,16 @@
   <script>
   // ==== DADOS DE EXEMPLO (mantive os seus) ====
   const sampleData = [
-    { timestamp:'2024-01-15 08:00:00', events:12, duration:5, intensity:85 },
-    { timestamp:'2024-01-15 08:05:00', events: 8, duration:5, intensity:78 },
-    { timestamp:'2024-01-15 08:10:00', events:15, duration:5, intensity:92 },
-    { timestamp:'2024-01-15 08:15:00', events: 6, duration:5, intensity:72 },
-    { timestamp:'2024-01-15 08:20:00', events:20, duration:5, intensity:95 },
-    { timestamp:'2024-01-15 08:25:00', events:10, duration:5, intensity:80 },
-    { timestamp:'2024-01-15 08:30:00', events:18, duration:5, intensity:88 },
-    { timestamp:'2024-01-15 08:35:00', events: 7, duration:5, intensity:75 },
-    { timestamp:'2024-01-15 08:40:00', events:14, duration:5, intensity:82 },
-    { timestamp:'2024-01-15 08:45:00', events: 9, duration:5, intensity:79 }
+    { timestamp:'2024-01-15 08:00:00', events:1, duration:0.5, intensity:85 },
+    { timestamp:'2024-01-15 08:00:01', events: 12, duration:5, intensity:28 },
+    { timestamp:'2024-01-15 08:00:02', events:13, duration:5, intensity:92 },
+    { timestamp:'2024-01-15 08:00:03', events: 2, duration:5, intensity:72 },
+    { timestamp:'2024-01-15 08:00:04', events:7, duration:5, intensity:95 },
+    { timestamp:'2024-01-15 08:00:05', events:9, duration:5, intensity:80 },
+    { timestamp:'2024-01-15 08:00:06', events:12, duration:5, intensity:88 },
+    { timestamp:'2024-01-15 08:00:07', events: 1, duration:5, intensity:75 },
+    { timestamp:'2024-01-15 08:00:08', events:13, duration:5, intensity:82 },
+    { timestamp:'2024-01-15 08:00:09', events: 11, duration:5, intensity:79 }
   ];
 
   let chart, currentData = [];
@@ -105,19 +105,51 @@
   function initializeChart() {
     const ctx = document.getElementById('eventsChart').getContext('2d');
     chart = new Chart(ctx, {
-      type: 'line',
-      data: { labels: [], datasets: [
-        { label:'Eventos por Período', data:[], borderColor:'#4299e1', backgroundColor:'rgba(66,153,225,0.1)', borderWidth:3, fill:true, tension:0.4 },
-        { label:'Intensidade Média', data:[], borderColor:'#ed8936', backgroundColor:'rgba(237,137,54,0.1)', borderWidth:2, borderDash:[5,5], fill:false, yAxisID:'y1' }
-      ]},
-      options: {
-        responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
-        scales:{ y:{ beginAtZero:true, title:{display:true,text:'Quantidade de Eventos'}, grid:{color:'rgba(0,0,0,0.1)'} },
-                 y1:{ position:'right', beginAtZero:false, suggestedMin: 70 , max:100, title:{display:true,text:'Intensidade (%)'}, grid:{drawOnChartArea:false}},
-                 x:{ grid:{color:'rgba(0,0,0,0.1)'}}},
-        plugins:{ legend:{position:'top'}, title:{display:true, text:'Histórico de Eventos Sonoros'} }
+  type: 'line',
+  data: {
+    // não use labels aqui; vamos usar pontos {x,y}
+    datasets: [
+      {
+        label: 'Eventos por Período',
+        data: [],                          // receberá {x: seg, y: eventos}
+        borderColor: '#4299e1',
+        backgroundColor: 'rgba(66,153,225,0.1)',
+        borderWidth: 3, fill: true, tension: 0.4
+      },
+      {
+        label: 'Intensidade Média',
+        data: [],                          // receberá {x: seg, y: intensidade}
+        borderColor: '#ed8936',
+        backgroundColor: 'rgba(237,137,54,0.1)',
+        borderWidth: 2, borderDash: [5,5], fill: false,
+        yAxisID: 'y1'
       }
-    });
+    ]
+  },
+  options: {
+    parsing: false,                        // usamos {x,y} diretamente
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    scales: {
+      y:  { beginAtZero: true,  title: { display: true, text: 'Quantidade de Eventos' },
+            grid: { color: 'rgba(0,0,0,0.1)' } },
+      y1: { position: 'right', beginAtZero: false, suggestedMin: 70, max: 100,
+            title: { display: true, text: 'Intensidade (%)' },
+            grid: { drawOnChartArea: false } },
+      x:  {
+        type: 'linear',
+        title: { display: true, text: 'Tempo (s)' },
+        ticks: { callback: v => Number(v).toFixed(2) + ' s' },
+        grid: { color: 'rgba(0,0,0,0.1)' }
+      }
+    },
+    plugins: {
+      legend: { position: 'top' },
+      title: { display: true, text: 'Histórico de Eventos Sonoros' }
+    }
+  }
+});
+
   }
 
   function updateDisplay() { updateChart(); updateKPIs(); updateTable(); }
@@ -126,17 +158,19 @@
 
   function updateChart() {
     if (!chart) return;
-    const labels = currentData.map(item => {
-      const d = new Date(item.timestamp);
-      return isNaN(d.getTime()) ? item.timestamp :
-        d.toLocaleTimeString('pt-BR', {minute:'2-digit', second:"2-digit"});
-    });
-    const validEvents = currentData.map(i => (i.intensity >= INTENSITY_THRESH) ? (i.events || 0) : 0);
-    const events = currentData.map(i => i.events);
-    const intensities = currentData.map(i => i.intensity);
-    chart.data.labels = labels;
-    chart.data.datasets[0].data = events;
-    chart.data.datasets[1].data = intensities;
+    let t0 = null;
+    const toSec = ts => {
+      const ms = new Date(ts.replace(' ', 'T')).getTime();
+      if (t0 === null) t0 = ms;
+      return (ms - t0) / 1000;
+    };
+
+    const pointsEvents = currentData.map(i => ({ x: toSec(i.timestamp), y: Number(i.events||0) }));
+    const pointsInten  = currentData.map(i => ({ x: toSec(i.timestamp), y: Number(i.intensity||0) }));
+
+    chart.data.labels = []; // não use labels com {x,y}
+    chart.data.datasets[0].data = pointsEvents;
+    chart.data.datasets[1].data = pointsInten;
     chart.update();
   }
 
@@ -149,7 +183,7 @@
     const quant = currentData.reduce((total, item) => {
       return total + (item.events && (item.intensity > 91) ? 1 : 0);
     }, 0)/6;
-    const cadence = qaunt/ 60*(totalDuration > 0 ? totalDuration : 1);
+    const cadence = quant/ 60*(totalDuration > 0 ? totalDuration : 1);
 
     console.log("duração: "+totalDuration);
     console.log("quantidade de tiros: " + quant)
