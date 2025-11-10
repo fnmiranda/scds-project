@@ -12,8 +12,13 @@
   <div class="container">
     <div class="card">
       <div class="header">
-        <h1>📊 Sistema de Detecção Sonora</h1>
-        <div class="subtitle">Histórico de Eventos - Sensor KY-037</div>
+        <div class="img-container">
+          <img class="img-logo" src="assets/logo.jpeg"/>
+
+        </div>
+        
+        <h1>Sistema de Detecção Sonora</h1>
+        <div class="subtitle">📊 Histórico de Eventos - Sensor KY-037</div>
       </div>
 
       <div class="kpi-grid">
@@ -22,7 +27,7 @@
           <span class="kpi-value" id="totalEvents">0</span>
         </div>
         <div class="kpi-card">
-          <span class="kpi-label">Média por Minuto</span>
+          <span class="kpi-label">Média por Segundo</span>
           <span class="kpi-value" id="avgPerMinute">0.0</span>
         </div>
         <div class="kpi-card">
@@ -34,7 +39,7 @@
           <span class="kpi-value" id="cadenceEvents">0</span>
         </div>
         <div class="kpi-card">
-          <span class="kpi-label">Duração Total</span>
+          <span class="kpi-label">Duração  (min)</span>
           <span class="kpi-value" id="totalDuration">0<span class="kpi-unit">min</span></span>
 
         
@@ -105,50 +110,50 @@
   function initializeChart() {
     const ctx = document.getElementById('eventsChart').getContext('2d');
     chart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    // não use labels aqui; vamos usar pontos {x,y}
-    datasets: [
-      {
-        label: 'Eventos por Período',
-        data: [],                          // receberá {x: seg, y: eventos}
-        borderColor: '#4299e1',
-        backgroundColor: 'rgba(66,153,225,0.1)',
-        borderWidth: 3, fill: true, tension: 0.4
-      },
-      {
-        label: 'Intensidade Média',
-        data: [],                          // receberá {x: seg, y: intensidade}
-        borderColor: '#ed8936',
-        backgroundColor: 'rgba(237,137,54,0.1)',
-        borderWidth: 2, borderDash: [5,5], fill: false,
-        yAxisID: 'y1'
-      }
-    ]
-  },
-  options: {
-    parsing: false,                        // usamos {x,y} diretamente
-    responsive: true, maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
-    scales: {
-      y:  { beginAtZero: true,  title: { display: true, text: 'Quantidade de Eventos' },
-            grid: { color: 'rgba(0,0,0,0.1)' } },
-      y1: { position: 'right', beginAtZero: false, suggestedMin: 70, max: 100,
-            title: { display: true, text: 'Intensidade (%)' },
-            grid: { drawOnChartArea: false } },
-      x:  {
-        type: 'linear',
-        title: { display: true, text: 'Tempo (s)' },
-        ticks: { callback: v => Number(v).toFixed(2) + ' s' },
-        grid: { color: 'rgba(0,0,0,0.1)' }
-      }
+    type: 'line',
+    data: {
+      // não use labels aqui; vamos usar pontos {x,y}
+      datasets: [
+        {
+          label: 'Eventos por Período',
+          data: [],                          // receberá {x: seg, y: eventos}
+          borderColor: '#4299e1',
+          backgroundColor: 'rgba(66,153,225,0.1)',
+          borderWidth: 3, fill: true, tension: 0.4
+        },
+        {
+          label: 'Intensidade Média',
+          data: [],                          // receberá {x: seg, y: intensidade}
+          borderColor: '#ed8936',
+          backgroundColor: 'rgba(237,137,54,0.1)',
+          borderWidth: 2, borderDash: [5,5], fill: false,
+          yAxisID: 'y1'
+        }
+      ]
     },
-    plugins: {
-      legend: { position: 'top' },
-      title: { display: true, text: 'Histórico de Eventos Sonoros' }
+    options: {
+      parsing: false,                        // usamos {x,y} diretamente
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y:  { beginAtZero: true,  title: { display: true, text: 'Quantidade de Eventos' },
+              grid: { color: 'rgba(0,0,0,0.1)' } },
+        y1: { position: 'right', beginAtZero: false, suggestedMin: 70, max: 100,
+              title: { display: true, text: 'Intensidade (%)' },
+              grid: { drawOnChartArea: false } },
+        x:  {
+          type: 'linear',
+          title: { display: true, text: 'Tempo (s)' },
+          ticks: { callback: v => Number(v).toFixed(2) + ' s' },
+          grid: { color: 'rgba(0,0,0,0.1)' }
+        }
+      },
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: 'Histórico de Eventos Sonoros' }
+      }
     }
-  }
-});
+  });
 
   }
 
@@ -175,22 +180,23 @@
   }
 
   function updateKPIs() {
+    const LIMIAR = (typeof INTENSITY_THRESH !== 'undefined') ? INTENSITY_THRESH : 90;
     const totalEvents = currentData.reduce((s,i)=>s+(+i.events||0),0);
     const totalDuration = currentData.reduce((s,i)=>s+(+i.duration||0),0);
     const eventsArr = currentData.map(i => +i.events||0);
     const peakEvents = eventsArr.length ? Math.max(...eventsArr) : 0;
     
-    const quant = currentData.reduce((total, item) => {
-      return total + (item.events && (item.intensity > 91) ? 1 : 0);
-    }, 0);
-    const cadence = totalEvents/ totalDuration;
+    const lastValid = [...currentData].reverse().find(i =>
+        Number(i.dt_ms) > 0 && Number(i.intensity||0) >= LIMIAR
+      );
+    const dpmInstant = lastValid ? (60000 / Number(lastValid.dt_ms)) : 0;
 
-    const avgPerMinute = totalDuration>0 ? (totalEvents/totalDuration).toFixed(2) : '0.00';
+    const avgPerMinute = totalDuration>0 ? (totalEvents/(60*totalDuration)).toFixed(3) : '0.00';
     document.getElementById('totalEvents').textContent = totalEvents;
     document.getElementById('avgPerMinute').textContent = avgPerMinute;
     document.getElementById('peakEvents').textContent = peakEvents;
-    document.getElementById('totalDuration').textContent = totalDuration.toFixed(2);
-    document.getElementById('cadenceEvents').textContent = cadence.toFixed(2);
+    document.getElementById('totalDuration').textContent = `${totalDuration.toFixed(2)}`;
+    document.getElementById('cadenceEvents').textContent = dpmInstant.toFixed(2);
   }
 
   function updateTable() {
@@ -242,7 +248,39 @@
   });
   </script>
 
+
+<!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="container footer-wrap">
+      <div class="footer-brand">
+        <div class="brand-logo small">EC</div>
+        <div>
+          <strong>EchoCheck</strong><br/>
+          <span class="muted">Engenharia acústica aplicada a monitoramento, diagnóstico e automação.</span>
+        </div>
+      </div>
+      <div class="footer-desc">
+        <p><strong>SCDS</strong> é um produto EchoCheck para análise de eventos de alta intensidade. Combina hardware robusto, algoritmos de detecção por limiar e Δt, e um painel web enxuto para cadência e histórico.</p>
+      </div>
+      <div class="footer-meta">
+        <span>© <span id="year"></span> EchoCheck • Todos os direitos reservados</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Seu JS atual (gráficos/socket) -->
+  <script>
+    // Atualiza ano no footer
+    document.addEventListener('DOMContentLoaded', () => {
+      const y = document.getElementById('year');
+      if (y) y.textContent = new Date().getFullYear();
+    });
+  </script>
   <!-- cliente Socket.IO (separado) -->
   <script src="/public/client.js" defer></script>
+
+
 </body>
+
+
 </html>

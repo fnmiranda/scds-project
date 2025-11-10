@@ -57,10 +57,10 @@ void loop() {
   // envia JSON por bucket e ZERA contadores do bucket
   if (now - lastSend >= SEND_EVERY_MS) {
     unsigned long dt = (lastSend == 0) ? 0 : (now - lastSend);
-    lastSend = now;
 
     int intensityPct = map(peakBucket, 0, 1023, 0, 100);
     if (intensityPct >= 91){
+      lastSend = now;
       Serial.print(F("{\"events\":"));
       Serial.print(eventsTotal);                 // << SOMENTE os eventos do bucket
       Serial.print(F(",\"duration_ms\":"));
