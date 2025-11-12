@@ -179,24 +179,64 @@
     chart.update();
   }
 
+  function  calcularCadenciaAtual(eventos) {
+        if (eventos.length < 2) {
+            return 0;
+        }
+        
+        // Ordena por timestamp
+        const eventosOrdenados = [...eventos].sort((a, b) => a.t_ms - b.t_ms);
+        
+        // Calcula intervalos baseados no tempo real
+        let somaIntervalos = 0;
+        let intervalosValidos = 0;
+        
+        for (let i = 1; i < eventosOrdenados.length; i++) {
+            const intervalo = eventosOrdenados[i].t_ms - eventosOrdenados[i - 1].t_ms;
+            if (intervalo >= 60) { // Filtra pelo período refratário
+                somaIntervalos += intervalo;
+                intervalosValidos++;
+            }
+        }
+        
+        if (intervalosValidos === 0) {
+            return 0;
+        }
+        
+        const intervaloMedio = somaIntervalos / intervalosValidos;
+        const cadencia = 60000 / intervaloMedio;
+        
+        return Math.round(cadencia * 10) / 10;
+    }
+
+  function getLastTime(dados){
+    if (dados.length <1) return 0;
+
+    const time_ordened_dec = [...dados].sort((a, b) => a.t_ms - b.t_ms);
+    const duration_tot = time_ordened_dec[dados.length-1].t_ms / 60000;
+    return duration_tot;
+  }
+
   function updateKPIs() {
     const LIMIAR = (typeof INTENSITY_THRESH !== 'undefined') ? INTENSITY_THRESH : 90;
+
     const totalEvents = currentData.reduce((s,i)=>s+(+i.events||0),0);
-    const totalDuration = currentData.reduce((s,i)=>s+(+i.duration||0),0);
+    //const totalDuration = currentData.reduce((s,i)=>s+(+i.duration||0),0);
     const eventsArr = currentData.map(i => +i.events||0);
+    
+   const total_time = getLastTime(currentData) || 0.00;
+
     const peakEvents = eventsArr.length ? Math.max(...eventsArr) : 0;
     
-    const lastValid = [...currentData].reverse().find(i =>
-        Number(i.dt_ms) > 0 && Number(i.intensity||0) >= LIMIAR
-      );
-    const dpmInstant = lastValid ? (60000 / Number(lastValid.dt_ms)) : 0;
+    const actualcadence = calcularCadenciaAtual(currentData);
 
-    const avgPerMinute = totalDuration>0 ? (totalEvents/(60*totalDuration)).toFixed(3) : '0.00';
+    const avgPerMinute = total_time>0 ? (totalEvents/(60 * total_time)).toFixed(3) : '0.00';
+
     document.getElementById('totalEvents').textContent = totalEvents;
     document.getElementById('avgPerMinute').textContent = avgPerMinute;
     document.getElementById('peakEvents').textContent = peakEvents;
-    document.getElementById('totalDuration').textContent = `${totalDuration.toFixed(2)}`;
-    document.getElementById('cadenceEvents').textContent = dpmInstant.toFixed(2);
+    document.getElementById('totalDuration').textContent = `${total_time.toFixed(3)}`;
+    document.getElementById('cadenceEvents').textContent = actualcadence.toFixed(2);
   }
 
   function updateTable() {

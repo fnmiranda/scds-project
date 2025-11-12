@@ -18,11 +18,11 @@ function normalize(msg){
 
   return {
     timestamp: ts,
-    events: Number(msg.events || 0),     // eventos do BUCKET
-    duration: durationMin,               // minutos (só métrica de janela)
+    events: Number(msg.events || 0),     
+    duration: durationMin,               
     intensity,
-    dt_ms: Number(msg.dt_ms || 0),       // Δt real entre tiros
-    t_ms:  Number(msg.t_ms  || 0)        // relógio monotônico do device
+    dt_ms: Number(msg.dt_ms || 0),       
+    t_ms:  Number(msg.t_ms  || 0)      
   };
 }
 

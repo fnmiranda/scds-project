@@ -63,11 +63,19 @@ if (port) {
         : (obj.duration_ms != null ? (Number(obj.duration_ms) / 60000) : 1);
       const intensity = obj.intensity != null ? Number(obj.intensity)
         : (obj.peak_intensity != null ? Number(obj.peak_intensity) : 0);
+
+      const t_ms = obj.t_ms != null ? Number(obj.t_ms)
+        : 0;
+      const dt_ms = obj.dt_ms != null ? Number(obj.dt_ms)
+        : 0;
+        
       const out = {
         timestamp: obj.timestamp || nowString(),
-        events: Number(obj.events || 0),
+        events: Number(obj.events || 1),
         duration: Number.isFinite(durationMin) ? Number(durationMin) : 1,
-        intensity: Number.isFinite(intensity) ? intensity : 0
+        intensity: Number.isFinite(intensity) ? intensity : 0,
+        t_ms: Number.isFinite(t_ms) ? t_ms : 0,
+        dt_ms: Number.isFinite(dt_ms) ? dt_ms : 0,
       };
       pushRing(out);
       io.emit('reading', out);
