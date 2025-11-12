@@ -1,0 +1,196 @@
+ 
+  const sampleData = [
+    { timestamp:'2024-01-15 08:00:00', events:1, duration:0.3, intensity:85 },
+    { timestamp:'2024-01-15 08:00:01', events: 12, duration:1.7, intensity:28 },
+    { timestamp:'2024-01-15 08:00:02', events:13, duration:5, intensity:92 },
+    { timestamp:'2024-01-15 08:00:03', events: 2, duration:5, intensity:72 },
+    { timestamp:'2024-01-15 08:00:04', events:7, duration:5, intensity:95 },
+    { timestamp:'2024-01-15 08:00:05', events:9, duration:5, intensity:80 },
+    { timestamp:'2024-01-15 08:00:06', events:12, duration:5, intensity:88 },
+    { timestamp:'2024-01-15 08:00:07', events: 1, duration:5, intensity:75 },
+    { timestamp:'2024-01-15 08:00:08', events:13, duration:5, intensity:82 },
+    { timestamp:'2024-01-15 08:00:09', events: 11, duration:5, intensity:79 }
+  ];
+
+  let chart, currentData = [];
+
+  function initializeChart() {
+    const ctx = document.getElementById('eventsChart').getContext('2d');
+    chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      // não use labels aqui; vamos usar pontos {x,y}
+      datasets: [
+        {
+          label: 'Eventos por Período',
+          data: [],                          // receberá {x: seg, y: eventos}
+          borderColor: '#4299e1',
+          backgroundColor: 'rgba(66,153,225,0.1)',
+          borderWidth: 3, fill: true, tension: 0.4
+        },
+        {
+          label: 'Intensidade Média',
+          data: [],                          // receberá {x: seg, y: intensidade}
+          borderColor: '#ed8936',
+          backgroundColor: 'rgba(237,137,54,0.1)',
+          borderWidth: 2, borderDash: [5,5], fill: false,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      parsing: false,                        // usamos {x,y} diretamente
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y:  { beginAtZero: true,  title: { display: true, text: 'Quantidade de Eventos' },
+              grid: { color: 'rgba(0,0,0,0.1)' } },
+        y1: { position: 'right', beginAtZero: false, suggestedMin: 70, max: 100,
+              title: { display: true, text: 'Intensidade (%)' },
+              grid: { drawOnChartArea: false } },
+        x:  {
+          type: 'linear',
+          title: { display: true, text: 'Tempo (s)' },
+          ticks: { callback: v => Number(v).toFixed(2) + ' s' },
+          grid: { color: 'rgba(0,0,0,0.1)' }
+        }
+      },
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: 'Histórico de Eventos Sonoros' }
+      }
+    }
+  });
+
+  }
+
+  function updateDisplay() { updateChart(); updateKPIs(); updateTable(); }
+
+  const INTENSITY_THRESH = 92;
+
+
+  function updateChart() {
+    if (!chart) return;
+    let t0 = null;
+        const toSec = ts => {
+      const ms = new Date(ts.replace(' ', 'T')).getTime();
+      if (t0 === null) t0 = ms;
+      return (ms - t0) / 1000;
+    };
+
+    const pointsEvents = currentData.map(i => ({ x: toSec(i.timestamp), y: Number(i.events||0) }));
+    const pointsInten  = currentData.map(i => ({ x: toSec(i.timestamp), y: Number(i.intensity||0) }));
+
+    chart.data.labels = []; // não use labels com {x,y}
+    chart.data.datasets[0].data = pointsEvents;
+    chart.data.datasets[1].data = pointsInten;
+    chart.update();
+  }
+
+  function  calcularCadenciaAtual(eventos) {
+        if (eventos.length < 2) {
+            return 0;
+        }
+        
+        // Ordena por timestamp
+        const eventosOrdenados = [...eventos].sort((a, b) => a.t_ms - b.t_ms);
+        
+        // Calcula intervalos baseados no tempo real
+        let somaIntervalos = 0;
+        let intervalosValidos = 0;
+        
+        for (let i = 1; i < eventosOrdenados.length; i++) {
+            const intervalo = eventosOrdenados[i].t_ms - eventosOrdenados[i - 1].t_ms;
+            if (intervalo >= 60) { // Filtra pelo período refratário
+                somaIntervalos += intervalo;
+                intervalosValidos++;
+            }
+        }
+        
+        if (intervalosValidos === 0) {
+            return 0;
+        }
+        
+        const intervaloMedio = somaIntervalos / intervalosValidos;
+        const cadencia = 60000 / intervaloMedio;
+        
+        return Math.round(cadencia * 10) / 10;
+    }
+
+  function getLastTime(dados){
+    if (dados.length <1) return 0;
+
+    const time_ordened_dec = [...dados].sort((a, b) => a.t_ms - b.t_ms);
+    const duration_tot = time_ordened_dec[dados.length-1].t_ms / 60000;
+    return duration_tot;
+  }
+
+  function updateKPIs() {
+    const LIMIAR = (typeof INTENSITY_THRESH !== 'undefined') ? INTENSITY_THRESH : 90;
+
+    const totalEvents = currentData.reduce((s,i)=>s+(+i.events||0),0);
+    //const totalDuration = currentData.reduce((s,i)=>s+(+i.duration||0),0);
+    const eventsArr = currentData.map(i => +i.events||0);
+    
+   const total_time = getLastTime(currentData) || 0.00;
+
+    const peakEvents = eventsArr.length ? Math.max(...eventsArr) : 0;
+    
+    const actualcadence = calcularCadenciaAtual(currentData);
+
+    const avgPerMinute = total_time>0 ? (totalEvents/(60 * total_time)).toFixed(3) : '0.00';
+
+    document.getElementById('totalEvents').textContent = totalEvents;
+    document.getElementById('avgPerMinute').textContent = avgPerMinute;
+    document.getElementById('peakEvents').textContent = peakEvents;
+    document.getElementById('totalDuration').textContent = `${total_time.toFixed(3)}`;
+    document.getElementById('cadenceEvents').textContent = actualcadence.toFixed(2);
+  }
+
+  function updateTable() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    currentData.forEach(item => {
+      const row = document.createElement('tr');
+      const bar = `<div style="width:60px;height:6px;background:#e2e8f0;border-radius:3px;">
+                     <div style="width:${(+item.intensity||0)}%;height:100%;background:#4299e1;border-radius:3px;"></div>
+                   </div>`;
+      row.innerHTML = `
+        <td>${item.timestamp}</td>
+        <td>${item.events}</td>
+        <td>${item.duration}</td>
+        <td><div style="display:flex;align-items:center;gap:8px;">${bar} ${item.intensity}%</div></td>`;
+      tbody.appendChild(row);
+    });
+  }
+
+  function exportData() {
+    if (!currentData.length) return alert('Não há dados para exportar!');
+    const csv = "data:text/csv;charset=utf-8," +
+      "Timestamp,Eventos,Duração(min),Intensidade(%)\n" +
+      currentData.map(i => `${i.timestamp},${i.events},${i.duration},${i.intensity}`).join("\n");
+    const link = Object.assign(document.createElement("a"), { href: encodeURI(csv), download: "dados_sensor_ky037.csv" });
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  }
+
+  function clearChart(){ currentData = []; updateDisplay(); }
+
+  function loadSampleData(){ currentData=[...sampleData]; updateDisplay(); }
+
+  // Expostos para o cliente (Socket)
+  window.appendArduinoItem = function(item){
+    currentData.push(item);
+    updateDisplay();
+  };
+  window.replaceAllData = function(arr){
+    currentData = Array.isArray(arr)? arr : [];
+    updateDisplay();
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeChart();
+    loadSampleData(); // opcional: comente se não quiser carregar exemplo automático
+    document.getElementById('btnSample').onclick = loadSampleData;
+    document.getElementById('btnExport').onclick = exportData;
+    document.getElementById('btnClear').onclick = clearChart;
+  });
