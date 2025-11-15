@@ -46,6 +46,7 @@ body{
   font-weight:800;
   letter-spacing:.3px;
   text-shadow: 0 6px 18px rgba(34,211,166,.2);
+  margin-bottom: 20px;
 }
 .header .subtitle{
   color: var(--muted);
