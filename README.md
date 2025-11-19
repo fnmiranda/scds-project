@@ -25,3 +25,7 @@ O SCDS (Shot Cadence Detection System) é uma aplicação web que permite calcul
 ```bash
 git clone https://github.com/fnmiranda/scds-project.git
 cd scds-project
+npm install
+npm start
+```
+Este README inclui todas as informações essenciais sobre o projeto, com uma estrutura clara e organizada. Você pode personalizar ainda mais adicionando screenshots, informações sobre contribuição, ou detalhes específicos do funcionamento do algoritmo de cálculo.
